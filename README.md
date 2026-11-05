@@ -56,7 +56,7 @@ Google Tasks 页面上的 Obsidian 链接助手：复制任务内容时自动检
 
 ## Roadmap
 
-- [ ] 纯 Chrome 扩展版（Manifest V3，免装 Tampermonkey）
+- [x] 纯 Chrome 扩展版（Manifest V3）
 - [ ] 检测到多个链接时聚合 OLO 深链（`?u=`）一键全开
 - [ ] 记住上次关闭的链接 hash，24h 内不重复弹
 
