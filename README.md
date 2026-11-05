@@ -2,6 +2,13 @@
 
 Google Tasks 页面上的 Obsidian 链接助手：复制任务内容时自动检测 `obsidian://` 链接和 `[[wikilink]]`，弹出小窗一键跳转打开 / 一键复制文件名。
 
+两种形态二选一：
+
+| 形态 | 路径 | 依赖 |
+|---|---|---|
+| **Chrome 扩展**（推荐） | `extension/` 目录 | 无，Chrome/Edge 原生加载 |
+| 油猴脚本 | `tasks2obsidian.user.js` | Tampermonkey / Violentmonkey |
+
 ## 背景
 
 笔记的 gtask 消化管道（Hermes cron）处理完任务后，会在 task 的 notes 里追加：
@@ -13,7 +20,14 @@ Google Tasks 页面上的 Obsidian 链接助手：复制任务内容时自动检
 
 原来要打开 https://olo-phi.vercel.app/ → 粘贴 → 识别 → 点击打开，四步。这个脚本把"检测+弹窗"直接搬进 tasks.google.com 页面，复制即弹出，一步到位。
 
-## 安装（Tampermonkey / Violentmonkey）
+## 安装方式一：Chrome 扩展（推荐，免装 Tampermonkey）
+
+1. Chrome 打开 `chrome://extensions/`
+2. 右上角开启「开发者模式」
+3. 点「加载已解压的扩展程序」→ 选择本仓库的 `extension/` 目录
+4. 打开 https://tasks.google.com/tasks/ 使用
+
+## 安装方式二：油猴脚本（Tampermonkey / Violentmonkey）
 
 1. 浏览器装 [Tampermonkey](https://www.tampermonkey.net/) 扩展
 2. 点 Tampermonkey 图标 → 添加新脚本 → 粘贴 `tasks2obsidian.user.js` 全部内容 → 保存
