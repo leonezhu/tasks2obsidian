@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Tasks→Obsidian 链接助手",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "在 Google Tasks 页面复制内容时自动检测 Obsidian 链接，弹窗一键打开/复制文件名",
-  "permissions": ["clipboardRead", "clipboardWrite"],
+  "permissions": ["clipboardRead", "clipboardWrite", "storage"],
   "host_permissions": [],
   "content_scripts": [
     {

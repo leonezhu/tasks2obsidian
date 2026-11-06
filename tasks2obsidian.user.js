@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Tasks→Obsidian 链接助手
 // @namespace    leonezhu
-// @version      1.0.0
-// @description  在 Google Tasks 页面复制内容时自动检测 Obsidian 链接，弹出小窗：一键跳转打开 / 一键复制文件名
+// @version      1.1.1
+// @description  在 Google Tasks 页面复制内容时自动检测 Obsidian 链接，居中弹窗：一键跳转打开 / 一键复制文件名，可开启自动跳转免确认
 // @author       leonezhu + Hermes
 // @match        https://tasks.google.com/*
 // @match        https://tasks.google.com/tasks/*
 // @grant        GM_setClipboard
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @grant        GM_addStyle
 // @run-at       document-idle
 // ==/UserScript==
@@ -111,12 +113,15 @@
 
   // ---------- UI ----------
   GM_addStyle(`
-    #t2o-panel{position:fixed;right:18px;bottom:18px;z-index:99999;
+    #t2o-panel{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99999;
       width:340px;max-height:60vh;overflow:auto;
       background:#faf9f5;color:#29261b;border:1px solid #d9d5c8;border-radius:14px;
       box-shadow:0 8px 30px rgba(0,0,0,.18);font:13px/1.5 -apple-system,sans-serif;
       display:none}
     #t2o-panel.show{display:block}
+    #t2o-auto-row{padding:6px 14px;border-bottom:1px solid #f0eee6;font-size:11.5px;color:#6e6b5e}
+    #t2o-auto-row label{display:flex;align-items:center;gap:6px;cursor:pointer}
+    #t2o-auto{accent-color:#d97757;margin:0;cursor:pointer}
     #t2o-head{display:flex;align-items:center;justify-content:space-between;
       padding:10px 14px;border-bottom:1px solid #d9d5c8;font-weight:600;font-size:13px}
     #t2o-close{cursor:pointer;color:#6e6b5e;font-size:16px;padding:0 4px}
@@ -139,7 +144,7 @@
 
   const panel = document.createElement('div');
   panel.id = 't2o-panel';
-  panel.innerHTML = '<div id="t2o-head"><span>Obsidian 链接</span><span id="t2o-close">✕</span></div><div id="t2o-body"></div>';
+  panel.innerHTML = '<div id="t2o-head"><span>Obsidian 链接</span><span id="t2o-close">✕</span></div><div id="t2o-auto-row"><label for="t2o-auto"><input type="checkbox" id="t2o-auto">自动打开 Obsidian（单个链接时直接跳转）</label></div><div id="t2o-body"></div>';
   document.body.appendChild(panel);
   const toast = document.createElement('div');
   toast.id = 't2o-toast';
@@ -151,6 +156,19 @@
     setTimeout(() => toast.classList.remove('show'), 1400);
   };
   panel.querySelector('#t2o-close').onclick = () => panel.classList.remove('show');
+
+  // 自动打开开关（GM 持久化，localStorage 兜底）
+  const autoBox = panel.querySelector('#t2o-auto');
+  let autoOpen = (() => {
+    try { return !!GM_getValue('autoOpen', false); }
+    catch (e) { return localStorage.getItem('t2oAutoOpen') === '1'; }
+  })();
+  autoBox.checked = autoOpen;
+  autoBox.addEventListener('change', () => {
+    autoOpen = autoBox.checked;
+    try { GM_setValue('autoOpen', autoOpen); }
+    catch (e) { try { localStorage.setItem('t2oAutoOpen', autoOpen ? '1' : '0'); } catch (e2) {} }
+  });
 
   function copyText(text, label) {
     if (typeof GM_setClipboard === 'function') {
@@ -166,6 +184,12 @@
     try { document.execCommand('copy'); showToast('已复制：' + label); }
     catch (e) { showToast('复制失败'); }
     document.body.removeChild(ta);
+  }
+
+  function autoOpenItem(item) {
+    // 自动模式没有用户手势，window.open 容易被弹窗拦截，改用 location.href 走外部协议
+    try { location.href = toUri(item); } catch (e) {}
+    showToast('已自动打开：' + prettyName(item));
   }
 
   function render(items) {
@@ -197,7 +221,7 @@
     panel.classList.add('show');
   }
 
-  function checkText(text) {
+  function checkText(text, manual) {
     if (!text) return;
     const uris = extractObsidianUris(text);
     const wikis = extractWikiLinks(text);
@@ -205,26 +229,22 @@
     const wikisDedup = wikis.filter(w => { if (seen.has(w.target)) return false; seen.add(w.target); return true; });
     const items = [...uris, ...wikisDedup];
     if (items.length) {
-      render(items);
+      if (!manual && autoOpen && items.length === 1) autoOpenItem(items[0]);
+      else render(items);
     }
   }
 
   // ---------- 触发：复制事件 + 快捷键 ----------
   document.addEventListener('copy', (e) => {
     const sel = String(window.getSelection() || '');
-    setTimeout(() => checkText(sel || e.clipboardData?.getData('text') || ''), 50);
+    setTimeout(() => checkText(sel || e.clipboardData?.getData('text') || '', false), 50);
   }, true);
 
   document.addEventListener('keydown', (e) => {
     // Alt+V: 读剪贴板手动触发（复制事件没覆盖到的场景）
-    if (e.altKey && (e.key === 'v' || e.key === 'V')) {
-      navigator.clipboard.readText().then(checkText).catch(() => {});
+    if (e.altKey && (e.code === 'KeyV' || e.key === 'v' || e.key === 'V')) {
+      navigator.clipboard.readText().then((t) => checkText(t, true)).catch(() => {});
     }
   }, true);
 
-  // 面板顶部加一行说明
-  const tip = document.createElement('div');
-  tip.style.cssText = 'padding:6px 14px;font-size:11px;color:#6e6b5e;border-bottom:1px solid #f0eee6';
-  tip.textContent = 'Alt+V 可随时手动检测剪贴板';
-  panel.querySelector('#t2o-head').after(tip);
 })();
